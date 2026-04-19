@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Batch YouTube to MP3</title>
+
+<link href="https://fonts.bunny.net/css?family=poppins:400,500,700" rel="stylesheet"/>
+
+<style>
+body{
+  font-family:Poppins;
+  background:linear-gradient(135deg,#4d79ff,#1e1e50);
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  min-height:100vh;
+}
+
+.container{
+  background:#fff;
+  padding:25px;
+  border-radius:12px;
+  width:100%;
+  max-width:650px;
+}
+
+h1{text-align:center;margin-bottom:20px;}
+
+.input-row{
+  display:flex;
+  gap:10px;
+  margin-bottom:10px;
+}
+
+input{
+  flex:1;
+  padding:10px;
+}
+
+button{
+  padding:10px;
+  cursor:pointer;
+}
+
+.thumb{
+  display:flex;
+  gap:10px;
+  margin-bottom:15px;
+  align-items:center;
+}
+
+.thumb img{
+  width:120px;
+  border-radius:6px;
+}
+
+.meta{
+  font-size:14px;
+}
+
+.controls{
+  display:flex;
+  gap:10px;
+  margin:10px 0;
+  flex-wrap:wrap;
+}
+
+.result{
+  margin-top:15px;
+  font-size:14px;
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+<h1>FREEDOM MIXER v1</h1>
+
+<div id="inputs"></div>
+
+<div class="controls">
+<button onclick="addInput()">➕</button>
+<button onclick="removeInput()">➖</button>
+
+<select id="bitrate">
+<option value="128K">128K</option>
+<option value="192K" selected>192K</option>
+<option value="320K">320K</option>
+</select>
+
+<select id="testLinks" onchange="applyTestLink(this)"></select>
+
+<button onclick="populateAll()">Populate</button>
+</div>
+
+<div style="margin:10px 0;">
+<label>
+<input type="checkbox" id="forever">
+Forever Mode
+</label>
+</div>
+
+<button onclick="convertAll()">Convert All</button>
+
+<div id="results" class="result"></div>
+</div>
+
+<script>
+//////////////////////////////////////////////////////////
+//  20 REAL LOFI MIXES ONLY
+//////////////////////////////////////////////////////////
+const TEST_LINKS = [
+{ name:"Mix 1", url:"https://youtu.be/NhTpsRWj_-4?si=G8wNIr9YJn4MeO6r" },
+{ name:"Mix 2", url:"https://youtu.be/4rX0xB97l6A?si=nXbcIsjxS3kHfBic" },
+{ name:"Mix 3", url:"https://youtu.be/-jJUOx_ecZQ?si=tUq5nyuWBJeQMb-Q" },
+{ name:"Mix 4", url:"https://youtu.be/xn5tDT75QoI?si=EbRIjz-6bTwv8jlh" },
+{ name:"Mix 5", url:"https://youtu.be/vRfyT6eR_3A?si=S9oQq3Kng5MuoM9D" },
+{ name:"Mix 6", url:"https://youtu.be/KR5swNLQaAc?si=75_GyMwqKKvGc0QS" },
+{ name:"Mix 7", url:"https://youtu.be/4rX0xB97l6A?si=eZgRZ_fDkBBn41w8" },
+{ name:"Mix 8", url:"https://youtu.be/maCoCiHPJMM?si=-5cS_kt-ntCmGpDZ" },
+{ name:"Mix 9", url:"https://youtu.be/S9SMS5gYTJk?si=uOFrPOBlVYgSrwko" },
+{ name:"Mix 10", url:"https://youtu.be/maCoCiHPJMM?si=EnOtd3pjbLttcbA9" },
+{ name:"Mix 11", url:"https://youtu.be/S9SMS5gYTJk?si=Qs2wlwOusHcoVJyY" },
+{ name:"Mix 12", url:"https://youtu.be/wU9D6y779vo?si=GM5tF99fXSPS1KRJ" },
+{ name:"Mix 13", url:"https://youtu.be/g3bD0ylhw8M?si=eT1Cncr94i5xj0NR" },
+{ name:"Mix 14", url:"https://youtu.be/L-b_5oj3dto?si=kS-hix3u4mY4bu0n" },
+{ name:"Mix 15", url:"https://youtu.be/buMQdqzKcdw?si=VR02qUOMvY-cnz6v" },
+{ name:"Mix 16", url:"https://youtu.be/-jJUOx_ecZQ?si=47J8RyEVYdvwVUmJ" },
+{ name:"Mix 17", url:"https://youtu.be/KR5swNLQaAc?si=HxYiy6sRLaqCTvN1" },
+{ name:"Mix 18", url:"https://youtu.be/vMdx9QLNMqg?si=9FGBeGirDlxjCps3" }	
+];
+
+//////////////////////////////////////////////////////////
+function initDropdown(){
+  const select = document.getElementById('testLinks');
+  select.innerHTML = `<option value="">-- Quick Test Links --</option>`;
+
+  TEST_LINKS.forEach(link=>{
+    const opt = document.createElement('option');
+    opt.value = link.url;
+    opt.textContent = link.name;
+    select.appendChild(opt);
+  });
+}
+
+//////////////////////////////////////////////////////////
+function applyTestLink(select){
+  const url = select.value;
+  if(!url) return;
+
+  const input = document.querySelector('#inputs input');
+  input.value = url;
+  fetchMeta(input);
+}
+
+//////////////////////////////////////////////////////////
+function populateAll(){
+  const container = document.getElementById('inputs');
+  container.innerHTML = '';
+
+  TEST_LINKS.forEach(link=>{
+    const div = document.createElement('div');
+    div.className = 'input-block';
+    div.innerHTML = `
+      <div class="input-row">
+        <input type="text" value="${link.url}" oninput="fetchMeta(this)">
+      </div>
+      <div class="thumb" style="display:none;">
+        <img>
+        <div class="meta"></div>
+      </div>
+    `;
+    container.appendChild(div);
+
+    const input = div.querySelector('input');
+    fetchMeta(input);
+  });
+}
+
+//////////////////////////////////////////////////////////
+let count = 0;
+
+function addInput(){
+  count++;
+  const div = document.createElement('div');
+  div.className = 'input-block';
+  div.innerHTML = `
+    <div class="input-row">
+      <input type="text" placeholder="Paste YouTube URL" oninput="fetchMeta(this)">
+    </div>
+    <div class="thumb" style="display:none;">
+      <img>
+      <div class="meta"></div>
+    </div>
+  `;
+  document.getElementById('inputs').appendChild(div);
+}
+
+function removeInput(){
+  const container = document.getElementById('inputs');
+  if(container.children.length > 1){
+    container.removeChild(container.lastChild);
+  }
+}
+
+addInput();
+initDropdown();
+
+//////////////////////////////////////////////////////////
+async function fetchMeta(input){
+  const url = input.value.trim();
+  if(!url) return;
+
+  try{
+    const res = await fetch('/info',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({url})
+    });
+
+    const data = await res.json();
+
+    if(res.ok){
+      const block = input.closest('.input-block');
+      const thumb = block.querySelector('.thumb');
+      const img = thumb.querySelector('img');
+      const meta = thumb.querySelector('.meta');
+
+      img.src = data.thumbnail;
+      meta.innerHTML = `<b>${data.title}</b><br>Duration: ${data.duration}s`;
+
+      thumb.style.display = 'flex';
+    }
+
+  }catch(e){
+    console.log(e);
+  }
+}
+
+//////////////////////////////////////////////////////////
+async function convertAll(){
+
+  const inputs = document.querySelectorAll('#inputs input');
+  const bitrate = document.getElementById('bitrate').value;
+  const forever = document.getElementById('forever').checked;
+
+  const results = document.getElementById('results');
+  results.innerHTML = "WAIT...";
+
+  const promises = [];
+
+  inputs.forEach(input=>{
+    if(input.value.trim()){
+
+      const statusDiv = document.createElement('div');
+      statusDiv.innerHTML = "CONVERTING...";
+      results.appendChild(statusDiv);
+
+      promises.push(
+        fetch('/convert',{
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({
+            url: input.value,
+            bitrate,
+            forever
+          })
+        })
+        .then(r=>r.json())
+        .then(d=>{
+
+          if(d.status === 'forever_started'){
+            statusDiv.innerHTML = "FOREVER MODE ACTIVE";
+            return;
+          }
+
+          if(d.filePath){
+            statusDiv.innerHTML = `
+              CONVERSION SUCCESSFUL<br>
+              DOWNLOADING COMPLETE<br>
+              SAVED FILE:<br>
+              ${d.fileName}<br>
+              <a href="${d.filePath}" download>Download</a>
+            `;
+            return;
+          }
+
+          statusDiv.innerHTML = "ERROR";
+        })
+        .catch(()=>{
+          statusDiv.innerHTML = "ERROR";
+        })
+      );
+    }
+  });
+
+  await Promise.all(promises);
+}
+</script>
+
+</body>
+</html>
